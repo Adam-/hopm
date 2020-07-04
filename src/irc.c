@@ -550,6 +550,7 @@ irc_init(void)
           log_printf("IRC -> unable to create SSL context");
           exit(EXIT_FAILURE);
         }
+        SSL_CTX_set_default_verify_paths(ssl_ctx);
     }
 
     ssl_handle = SSL_new(ssl_ctx);
