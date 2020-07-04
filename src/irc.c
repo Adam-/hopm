@@ -35,6 +35,11 @@
 #include <stdarg.h>
 #include <regex.h>
 #include <assert.h>
+#ifdef HAVE_LIBCRYPTO
+#include <openssl/ssl.h>
+#include <openssl/x509v3.h>
+#include <openssl/err.h>
+#endif
 
 #include "config.h"
 #include "irc.h"
@@ -64,6 +69,11 @@ static struct sockaddr_storage IRC_SVR;  /* Sock Address Struct for IRC server  
 static socklen_t svr_addrlen;
 static time_t IRC_LAST;                  /* Last full line of data from irc server */
 static time_t IRC_LASTRECONNECT;         /* Time of last reconnection              */
+
+#if HAVE_LIBCRYPTO
+static SSL_CTX *ssl_ctx;
+static SSL *ssl_handle;
+#endif
 
 
 /* get_channel
@@ -524,6 +534,41 @@ irc_init(void)
 
     freeaddrinfo(res);
   }
+
+  if (IRCItem.tls)
+  {
+#if HAVE_LIBCRYPTO
+    /* Initialize SSL */
+    static int tls_init = 0;
+    if (!tls_init)
+    {
+        tls_init = 1;
+        SSLeay_add_ssl_algorithms();
+        ssl_ctx = SSL_CTX_new(SSLv23_client_method());
+        if (ssl_ctx == NULL)
+        {
+          log_printf("IRC -> unable to create SSL context");
+          exit(EXIT_FAILURE);
+        }
+    }
+
+    ssl_handle = SSL_new(ssl_ctx);
+    SSL_set_fd(ssl_handle, IRC_FD);
+
+    SSL_set_hostflags(ssl_handle, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+    if (!SSL_set1_host(ssl_handle, IRCItem.server))
+    {
+      log_printf("IRC -> unable to set expected DNS hostname");
+      // openssl is unable to verify the server hostname at this point, so we exit.
+      exit(EXIT_FAILURE);
+    }
+
+    SSL_set_verify(ssl_handle, SSL_VERIFY_PEER, NULL);
+#else
+    log_printf("IRC -> HOPM is not compiled with SSL support");
+    exit(EXIT_FAILURE);
+#endif
+  }
 }
 
 /* irc_reconnect
@@ -553,6 +598,14 @@ irc_reconnect(void)
 
   if (IRC_FD > -1)
   {
+#if HAVE_LIBCRYPTO
+    if (ssl_handle != NULL)
+    {
+      SSL_shutdown(ssl_handle);
+      SSL_free(ssl_handle);
+      ssl_handle = NULL;
+    }
+#endif
     close(IRC_FD);
     IRC_FD = -1;  /* Set IRC_FD -1 for reconnection on next irc_cycle(). */
   }
@@ -584,6 +637,20 @@ irc_connect(void)
     irc_reconnect();
     return;
   }
+
+#if HAVE_LIBCRYPTO
+  if (ssl_handle != NULL)
+  {
+    int ret = SSL_connect(ssl_handle);
+    if (ret != 1)
+    {
+      const char *error = ERR_error_string(ERR_get_error(), NULL);
+      log_printf("IRC -> connect(): error performing TLS handshake with %s: %s", IRCItem.server,
+        error);
+      return;
+    }
+  }
+#endif
 
   irc_send("NICK %s", IRCItem.nick);
 
@@ -724,8 +791,18 @@ irc_read(void)
   ssize_t len;
   char c;
 
-  while ((len = read(IRC_FD, &c, 1)) > 0)
+  for (;;)
   {
+#if HAVE_LIBCRYPTO
+    if (ssl_handle != NULL)
+      len = SSL_read(ssl_handle, &c, 1);
+    else
+#endif
+      len = recv(IRC_FD, &c, 1, 0);
+
+    if (len <= 0)
+        break;
+
     if (c == '\r')
       continue;
 
@@ -835,7 +912,15 @@ irc_send(const char *data, ...)
   buf[len++] = '\r';
   buf[len++] = '\n';
 
-  if (send(IRC_FD, buf, len, 0) != len)
+  int sent;
+#if HAVE_LIBCRYPTO
+  if (ssl_handle != NULL)
+    sent = SSL_write(ssl_handle, buf, len);
+  else
+#endif
+    sent = send(IRC_FD, buf, len, 0);
+
+  if (sent != len)
   {
     /* Return of -1 indicates error sending data; we reconnect. */
     log_printf("IRC -> Error sending data to server: %s", strerror(errno));
