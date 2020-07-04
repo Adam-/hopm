@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 3.3.2.  */
+/* A Bison parser, made by GNU Bison 3.4.1.  */
 
 /* Bison interface for Yacc-like parsers in C
 
@@ -109,13 +109,14 @@ extern int yydebug;
     TARGET_PORT = 315,
     TARGET_STRING = 316,
     TIMEOUT = 317,
-    TYPE = 318,
-    USERNAME = 319,
-    USER = 320,
-    VHOST = 321,
-    NUMBER = 322,
-    STRING = 323,
-    PROTOCOLTYPE = 324
+    TLS = 318,
+    TYPE = 319,
+    USERNAME = 320,
+    USER = 321,
+    VHOST = 322,
+    NUMBER = 323,
+    STRING = 324,
+    PROTOCOLTYPE = 325
   };
 #endif
 /* Tokens.  */
@@ -179,27 +180,27 @@ extern int yydebug;
 #define TARGET_PORT 315
 #define TARGET_STRING 316
 #define TIMEOUT 317
-#define TYPE 318
-#define USERNAME 319
-#define USER 320
-#define VHOST 321
-#define NUMBER 322
-#define STRING 323
-#define PROTOCOLTYPE 324
+#define TLS 318
+#define TYPE 319
+#define USERNAME 320
+#define USER 321
+#define VHOST 322
+#define NUMBER 323
+#define STRING 324
+#define PROTOCOLTYPE 325
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-
 union YYSTYPE
 {
-#line 91 "config-parser.y" /* yacc.c:1921  */
+#line 92 "config-parser.y"
 
   int number;
   char *string;
 
-#line 201 "config-parser.h" /* yacc.c:1921  */
-};
+#line 202 "config-parser.h"
 
+};
 typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
