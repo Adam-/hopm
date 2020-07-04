@@ -542,15 +542,15 @@ irc_init(void)
     static int tls_init = 0;
     if (!tls_init)
     {
-        tls_init = 1;
-        SSLeay_add_ssl_algorithms();
-        ssl_ctx = SSL_CTX_new(SSLv23_client_method());
-        if (ssl_ctx == NULL)
-        {
-          log_printf("IRC -> unable to create SSL context");
-          exit(EXIT_FAILURE);
-        }
-        SSL_CTX_set_default_verify_paths(ssl_ctx);
+      tls_init = 1;
+      SSLeay_add_ssl_algorithms();
+      ssl_ctx = SSL_CTX_new(SSLv23_client_method());
+      if (ssl_ctx == NULL)
+      {
+        log_printf("IRC -> unable to create SSL context");
+        exit(EXIT_FAILURE);
+      }
+      SSL_CTX_set_default_verify_paths(ssl_ctx);
     }
 
     ssl_handle = SSL_new(ssl_ctx);
