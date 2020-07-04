@@ -641,6 +641,7 @@ irc_connect(void)
 #if HAVE_LIBCRYPTO
   if (ssl_handle != NULL)
   {
+    ERR_clear_error();
     int ret = SSL_connect(ssl_handle);
     if (ret != 1)
     {
